@@ -1,5 +1,8 @@
 name: Build HyperHLE
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -452,6 +455,62 @@ jobs:
           sh platform/ios/scripts/verify-ipa.sh dist/HyperHLE-iOS-unsigned.ipa
           sh platform/ios/scripts/verify-ipa.sh --trollstore dist/HyperHLE-iOS-trollstore.ipa
           sh platform/ios/scripts/verify-ipa.sh --trollstore-permanent-jit dist/HyperHLE-iOS-trollstore-permanent-jit.ipa
+
+      - name: Publish nightly iOS release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly-latest
+          name: HyperHLE Nightly Build
+          draft: false
+          prerelease: true
+          files: dist/HyperHLE-iOS-unsigned.ipa
+
+      - name: Generate source.json for AltStore / SideStore / LiveContainer
+        if: github.ref == 'refs/heads/trunk'
+        env:
+          SOURCE_URL: https://raw.githubusercontent.com/raed-alzahrani/HyperHLE-Aether-Test/trunk/source.json
+          IPA_URL: https://github.com/raed-alzahrani/HyperHLE-Aether-Test/releases/download/nightly-latest/HyperHLE-iOS-unsigned.ipa
+        run: |
+          set -eu
+          IPA_PATH="dist/HyperHLE-iOS-unsigned.ipa"
+          SIZE=$(stat -f %z "$IPA_PATH")
+          SHA256=$(shasum -a 256 "$IPA_PATH" | awk '{print $1}')
+          DATE_ISO=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          BUILD_VERSION="${{ github.run_number }}"
+          cat > source.json <<EOF
+          {
+            "name": "HyperHLE",
+            "identifier": "com.klugklug.hyperhle",
+            "sourceURL": "${SOURCE_URL}",
+            "apps": [
+              {
+                "name": "HyperHLE",
+                "bundleIdentifier": "com.klugklug.hyperhle",
+                "developerName": "HyperHLE",
+                "version": "nightly-${BUILD_VERSION}",
+                "versionDate": "${DATE_ISO}",
+                "versionDescription": "Nightly build #${BUILD_VERSION}",
+                "downloadURL": "${IPA_URL}",
+                "localizedDescription": "HyperHLE nightly build for AltStore / SideStore / LiveContainer.",
+                "iconURL": "https://raw.githubusercontent.com/raed-alzahrani/HyperHLE-Aether-Test/trunk/Assets.xcassets/AppIcon.appiconset/icon.png",
+                "tintColor": "#5E82FF",
+                "size": ${SIZE},
+                "minOSVersion": "15.0",
+                "metadata": {
+                  "sha256": "${SHA256}"
+                }
+              }
+            ]
+          }
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add source.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "[skip ci] update source.json for nightly build"
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:trunk
 
       # Each IPA is uploaded as-is rather than wrapped in a zip.
       - uses: actions/upload-artifact@main
