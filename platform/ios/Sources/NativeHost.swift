@@ -667,31 +667,35 @@ final class TouchHLENativeHost: NSObject {
         }
         shared.sdlWindowActivationObserver = observer
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak shared] in
-            guard shared?.sdlWindowActivationObserver != nil else { return }
-            Task { @MainActor in
-                attachWindowIfNeeded()
+        func activeSceneForWindowHandoff() -> UIWindowScene? {
+            if let ownedScene = shared.window?.windowScene {
+                return ownedScene
+            }
+            let connectedScenes = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+            return connectedScenes.first { $0.activationState == .foregroundActive }
+                ?? connectedScenes.first
+        }
+
+        func findSDLWindow(in activeScene: UIWindowScene?) -> UIWindow? {
+            let sceneWindows: [UIWindow] = activeScene?.windows ?? []
+            let allSceneWindows = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+            let candidateWindows = sceneWindows + allSceneWindows + UIApplication.shared.windows
+            return candidateWindows.first {
+                $0 !== shared.window
+                    && $0 !== shared.gameControlsWindow
+                    && !($0 is GameControlsWindow)
             }
         }
 
-        completion()
-
         func attachWindowIfNeeded() {
-            guard let activeScene = UIApplication.shared.connectedScenes
-                .compactMap({ $0 as? UIWindowScene })
-                .first
-            else {
+            guard let activeScene = activeSceneForWindowHandoff() else {
                 return
             }
 
-            let sdlWindow = activeScene.windows.first {
-                $0 !== shared.window && $0 !== shared.gameControlsWindow && !($0 is GameControlsWindow)
-            }
-            ?? UIApplication.shared.windows.first {
-                $0 !== shared.window && $0 !== shared.gameControlsWindow && !($0 is GameControlsWindow)
-            }
-
-            guard let sdlWindow else {
+            guard let sdlWindow = findSDLWindow(in: activeScene) else {
                 return
             }
 
@@ -701,13 +705,42 @@ final class TouchHLENativeHost: NSObject {
             sdlWindow.isHidden = false
             sdlWindow.windowLevel = .normal + 2
             sdlWindow.makeKeyAndVisible()
-            TouchHLENativeHost.hideHostWindow()
             TouchHLENativeHost.prepareGameControls(
                 launchOrientation: launchOrientation,
                 windowLevel: .normal + 3,
                 completion: {}
             )
+            TouchHLENativeHost.hideHostWindow()
         }
+
+        let retryDeadline = DispatchTime.now() + .milliseconds(1500)
+        let retryAttempt: @MainActor () -> Void = {
+            let activeScene = activeSceneForWindowHandoff()
+            guard let sdlWindow = findSDLWindow(in: activeScene) else {
+                if DispatchTime.now() < retryDeadline {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
+                        Task { @MainActor in
+                            retryAttempt()
+                        }
+                    }
+                }
+                return
+            }
+
+            attachWindowIfNeeded()
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
+            Task { @MainActor in
+                retryAttempt()
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(800)) {
+            TouchHLENativeHost.hideHostWindow()
+        }
+
+        completion()
     }
 
     @MainActor
