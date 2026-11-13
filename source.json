@@ -7,17 +7,17 @@
       "name": "HyperHLE",
       "bundleIdentifier": "com.klugklug.hyperhle",
       "developerName": "HyperHLE",
-      "version": "nightly-6",
-      "versionDate": "2026-11-13T23:14:07Z",
-      "versionDescription": "Nightly build #6",
+      "version": "nightly-9",
+      "versionDate": "2026-11-13T23:53:54Z",
+      "versionDescription": "Nightly build #9",
       "downloadURL": "https://github.com/raed-alzahrani/HyperHLE-Aether-Test/releases/download/nightly-latest/HyperHLE-iOS-unsigned.ipa",
       "localizedDescription": "HyperHLE nightly build for AltStore / SideStore / LiveContainer.",
       "iconURL": "https://raw.githubusercontent.com/raed-alzahrani/HyperHLE-Aether-Test/trunk/Assets.xcassets/AppIcon.appiconset/icon.png",
       "tintColor": "#5E82FF",
-      "size": 44752341,
+      "size": 44754162,
       "minOSVersion": "15.0",
       "metadata": {
-        "sha256": "558fbddc9996930c43190ffe8c9b1cb03c762036bde52466706c55c2f57f9efb"
+        "sha256": "b14b7ba2a1b406a6c87ac953e048c595538737db23fa10702be0399b3e42d8cd"
       }
     }
   ]
