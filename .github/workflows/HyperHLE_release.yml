@@ -50,9 +50,7 @@ jobs:
           mv vendor/boost_1_81_0 vendor/boost
 
       - name: Setup CMake
-        uses: lukka/get-cmake@v3
-        with:
-          cmakeVersion: "~3.29.0"
+        run: brew install cmake ninja
 
       - name: Build shared SDL2 for iOS
         run: sh platform/ios/scripts/build-sdl-shared.sh iphoneos
