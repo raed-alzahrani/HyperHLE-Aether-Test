@@ -38,8 +38,17 @@ jobs:
       - name: Install AArch64 iOS Rust toolchain
         run: rustup target add aarch64-apple-ios
 
-      - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@v2
+      - name: Cache Cargo registry, git deps, target, and SDL iOS build outputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+            build/sdl-shared-iphoneos/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', 'platform/ios/patches/sdl-ios-host.patch') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
       - name: Download Boost
         run: |
