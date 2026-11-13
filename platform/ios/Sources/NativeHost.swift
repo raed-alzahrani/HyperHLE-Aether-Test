@@ -363,7 +363,7 @@ private final class GameLibrary: ObservableObject {
                 currentInterfaceOrientation: TouchHLENativeHost.currentInterfaceOrientation
             )
             TouchHLENativeHost.hideHostWindow()
-            TouchHLENativeHost.prepareGameControls(
+            TouchHLENativeHost.attachAndActivateSDLWindow(
                 launchOrientation: launchOrientation
             ) { [weak self] in
                 guard let self else { return }
@@ -622,6 +622,7 @@ final class TouchHLENativeHost: NSObject {
     private static let shared = TouchHLENativeHost()
     private var window: UIWindow?
     private var gameControlsWindow: GameControlsWindow?
+    private var sdlWindowActivationObserver: NSObjectProtocol?
 
     @MainActor
     static var currentInterfaceOrientation: UIInterfaceOrientation {
@@ -650,12 +651,73 @@ final class TouchHLENativeHost: NSObject {
     }
 
     @MainActor
+    static func attachAndActivateSDLWindow(
+        launchOrientation: Int,
+        completion: @escaping @MainActor () -> Void
+    ) {
+        removeSdlWindowActivationObserver()
+
+        let observer = NotificationCenter.default.addObserver(
+            forName: UIWindow.didBecomeVisibleNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                attachWindowIfNeeded()
+            }
+        }
+        shared.sdlWindowActivationObserver = observer
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak shared] in
+            guard shared?.sdlWindowActivationObserver != nil else { return }
+            Task { @MainActor in
+                attachWindowIfNeeded()
+            }
+        }
+
+        completion()
+
+        func attachWindowIfNeeded() {
+            guard let activeScene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first
+            else {
+                return
+            }
+
+            let sdlWindow = activeScene.windows.first {
+                $0 !== shared.window && $0 !== shared.gameControlsWindow && !($0 is GameControlsWindow)
+            }
+            ?? UIApplication.shared.windows.first {
+                $0 !== shared.window && $0 !== shared.gameControlsWindow && !($0 is GameControlsWindow)
+            }
+
+            guard let sdlWindow else {
+                return
+            }
+
+            removeSdlWindowActivationObserver()
+            sdlWindow.windowScene = activeScene
+            sdlWindow.isHidden = false
+            sdlWindow.windowLevel = .normal
+            sdlWindow.makeKeyAndVisible()
+            TouchHLENativeHost.prepareGameControls(
+                launchOrientation: launchOrientation,
+                windowLevel: .normal + 1,
+                completion: {}
+            )
+        }
+    }
+
+    @MainActor
     static func prepareGameControls(
         launchOrientation: Int,
+        windowLevel: UIWindow.Level = .normal + 3,
         completion: @escaping @MainActor () -> Void
     ) {
         shared.presentGameControls(
             launchOrientation: launchOrientation,
+            windowLevel: windowLevel,
             completion: completion
         )
     }
@@ -663,6 +725,14 @@ final class TouchHLENativeHost: NSObject {
     @MainActor
     static func hideGameControls() {
         shared.dismissGameControls()
+    }
+
+    @MainActor
+    private static func removeSdlWindowActivationObserver() {
+        if let observer = shared.sdlWindowActivationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            shared.sdlWindowActivationObserver = nil
+        }
     }
 
     @MainActor
