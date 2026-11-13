@@ -753,6 +753,7 @@ final class TouchHLENativeHost: NSObject {
     @MainActor
     private func presentGameControls(
         launchOrientation: Int,
+        windowLevel: UIWindow.Level = .normal + 1,
         completion: @escaping @MainActor () -> Void
     ) {
         guard gameControlsWindow == nil,
@@ -763,7 +764,7 @@ final class TouchHLENativeHost: NSObject {
         }
 
         let controlsWindow = GameControlsWindow(windowScene: windowScene)
-        controlsWindow.windowLevel = UIWindow.Level.normal + 3
+        controlsWindow.windowLevel = windowLevel
         controlsWindow.accessibilityIdentifier = "touchHLE.gameControls"
         controlsWindow.backgroundColor = .clear
 
