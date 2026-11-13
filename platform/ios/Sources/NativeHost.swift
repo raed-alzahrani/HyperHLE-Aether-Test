@@ -701,7 +701,7 @@ final class TouchHLENativeHost: NSObject {
 
             removeSdlWindowActivationObserver()
             sdlWindow.windowScene = activeScene
-            sdlWindow.frame = activeScene.coordinateSpace.bounds
+            sdlWindow.frame = activeScene.screen.bounds
             sdlWindow.isHidden = false
             sdlWindow.windowLevel = .normal + 2
             sdlWindow.makeKeyAndVisible()
@@ -714,7 +714,9 @@ final class TouchHLENativeHost: NSObject {
         }
 
         let retryDeadline = DispatchTime.now() + .milliseconds(1500)
-        let retryAttempt: @MainActor () -> Void = {
+
+        @MainActor
+        func retryAttempt() {
             let activeScene = activeSceneForWindowHandoff()
             guard let sdlWindow = findSDLWindow(in: activeScene) else {
                 if DispatchTime.now() < retryDeadline {

@@ -38,8 +38,8 @@ jobs:
       - name: Install AArch64 iOS Rust toolchain
         run: rustup target add aarch64-apple-ios
 
-      - name: Cache Cargo registry, git deps, target, and SDL iOS build outputs
-        uses: actions/cache@v4
+      - name: Restore Cargo and SDL build cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo/registry
@@ -63,6 +63,17 @@ jobs:
 
       - name: Build shared SDL2 for iOS
         run: sh platform/ios/scripts/build-sdl-shared.sh iphoneos
+
+      - name: Save Cargo and SDL build cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+            build/sdl-shared-iphoneos/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', 'platform/ios/patches/sdl-ios-host.patch') }}
 
       - name: Build the iOS app
         run: sh platform/ios/scripts/build-host.sh iphoneos Release
