@@ -362,7 +362,6 @@ private final class GameLibrary: ObservableObject {
                 override: orientation,
                 currentInterfaceOrientation: TouchHLENativeHost.currentInterfaceOrientation
             )
-            TouchHLENativeHost.hideHostWindow()
             TouchHLENativeHost.attachAndActivateSDLWindow(
                 launchOrientation: launchOrientation
             ) { [weak self] in
@@ -698,12 +697,14 @@ final class TouchHLENativeHost: NSObject {
 
             removeSdlWindowActivationObserver()
             sdlWindow.windowScene = activeScene
+            sdlWindow.frame = activeScene.coordinateSpace.bounds
             sdlWindow.isHidden = false
-            sdlWindow.windowLevel = .normal
+            sdlWindow.windowLevel = .normal + 2
             sdlWindow.makeKeyAndVisible()
+            TouchHLENativeHost.hideHostWindow()
             TouchHLENativeHost.prepareGameControls(
                 launchOrientation: launchOrientation,
-                windowLevel: .normal + 1,
+                windowLevel: .normal + 3,
                 completion: {}
             )
         }
